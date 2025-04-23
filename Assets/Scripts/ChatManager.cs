@@ -1,3 +1,4 @@
+using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 using Whisper;
@@ -8,21 +9,56 @@ public class ChatManager : MonoBehaviour
     [SerializeField] private WhisperManager whisperManager;
     [SerializeField] private MicrophoneRecord recorder;
     [SerializeField] private ChatView chatView;
+    [SerializeField] private string chatApiKey;
+    [SerializeField] private string modelName;
+
+    private const string AIChatConfigPath = "AIChatConfig/config.json";
 
     public bool IsRecording => recorder.IsRecording;
+    private IChatPrompter chatPrompter;
 
-    private void Awake()
+    private async void Awake()
     {
         chatView.TalkButtonPressed += OnTalkButtonPressed;
         recorder.OnRecordStop += OnRecordStopped;
+
+        AiChatConfig aiConfig = null;
+        var keyFilePath = Path.Combine(Application.dataPath, AIChatConfigPath);
+        if (File.Exists(keyFilePath))
+        {
+            var configString = File.ReadAllText(keyFilePath);
+            aiConfig = JsonUtility.FromJson<AiChatConfig>(configString);
+        }
+        else
+        {
+            aiConfig = new AiChatConfig
+            {
+                model = modelName,
+                apiKey = chatApiKey
+            };
+        }
+
+        if (aiConfig == null
+            || string.IsNullOrEmpty(aiConfig.apiKey))
+        {
+            Debug.LogWarning($"API key is not set. Please provide a valid API key. Either put in the editor or in a json file with key 'model' and 'apiKey' in: {keyFilePath}");
+        }
+
+        chatPrompter = new GeminiPrompter(aiConfig.apiKey, aiConfig.model);
+        if (await chatPrompter.IsModelValidAsync())
+        {
+            Debug.Log($"Chat model {chatPrompter.Model} is valid.");
+        }
+        else
+        {
+            Debug.LogError($"Chat model {chatPrompter.Model} is not valid.");
+        }
     }
 
     private void OnRecordStopped(AudioChunk recordedAudio)
     {
-        // discard and process the audio
+        // process the audio and discard the task
         _ = ProcessAudio(recordedAudio);
-
-        chatView.ToggleTalkButtonText(false);
     }
 
     private async Task ProcessAudio(AudioChunk audio)
@@ -36,6 +72,20 @@ public class ChatManager : MonoBehaviour
 
         chatView.ScrollChatToBottom();
         chatView.SetText(result.Result);
+        chatView.EnableTalkButton(false);
+
+        var chatResult = await chatPrompter.PromptAsync(result.Result);
+
+        chatView.EnableTalkButton(true);
+
+        if (string.IsNullOrEmpty(chatResult))
+        {
+            Debug.LogError("Failed to get chat response.");
+            return;
+        }
+
+        chatView.SetText(chatResult);
+        chatView.ToggleTalkButtonText(false);
     }
 
     private void OnTalkButtonPressed()
@@ -59,4 +109,10 @@ public class ChatManager : MonoBehaviour
     {
         recorder.StopRecord();
     }
+}
+
+public class AiChatConfig
+{
+    public string model;
+    public string apiKey;
 }

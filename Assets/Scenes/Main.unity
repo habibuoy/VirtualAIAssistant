@@ -3233,7 +3233,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxLengthSec: 60
   loop: 1
-  frequency: 16000
+  frequency: 48000
   chunksLengthSec: 0.5
   echo: 0
   useVad: 1
@@ -4156,6 +4156,7 @@ MonoBehaviour:
   whisperManager: {fileID: 587639199}
   recorder: {fileID: 1337591123}
   chatView: {fileID: 781718533}
+  chatApiKey: 
 --- !u!4 &2007153491
 Transform:
   m_ObjectHideFlags: 0
