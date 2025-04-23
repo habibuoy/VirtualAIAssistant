@@ -9,6 +9,8 @@ public class ChatManager : MonoBehaviour
     [SerializeField] private WhisperManager whisperManager;
     [SerializeField] private MicrophoneRecord recorder;
     [SerializeField] private ChatView chatView;
+    [SerializeField] private CharacterView characterView;
+    [SerializeField] private JetsTts ttsRunner;
     [SerializeField] private string chatApiKey;
     [SerializeField] private string modelName;
 
@@ -21,6 +23,8 @@ public class ChatManager : MonoBehaviour
     {
         chatView.TalkButtonPressed += OnTalkButtonPressed;
         recorder.OnRecordStop += OnRecordStopped;
+        ttsRunner.ProcessCompleted += OnTtsCompleted;
+        ttsRunner.SpeechCompleted += OnSpeechCompleted;
 
         AiChatConfig aiConfig = null;
         var keyFilePath = Path.Combine(Application.dataPath, AIChatConfigPath);
@@ -61,8 +65,21 @@ public class ChatManager : MonoBehaviour
         _ = ProcessAudio(recordedAudio);
     }
 
+    private void OnTtsCompleted(float audioDuration)
+    {
+        characterView.FadeToTalking();
+    }
+
+    private void OnSpeechCompleted()
+    {
+        characterView.FadeToIdle();
+    }
+
     private async Task ProcessAudio(AudioChunk audio)
     {
+        chatView.ToggleTalkButtonText(false);
+        characterView.FadeToIdle();
+
         var result = await whisperManager.GetTextAsync(audio.Data, audio.Frequency, audio.Channels);
         if (result == null)
         {
@@ -85,7 +102,10 @@ public class ChatManager : MonoBehaviour
         }
 
         chatView.SetText(chatResult);
-        chatView.ToggleTalkButtonText(false);
+        if (ttsRunner)
+        {
+            ttsRunner.TextToSpeech(chatResult);
+        }
     }
 
     private void OnTalkButtonPressed()
@@ -98,6 +118,7 @@ public class ChatManager : MonoBehaviour
 
         StartRecording();
         chatView.ToggleTalkButtonText(true);
+        characterView.FadeToListening();
     }
 
     private void StartRecording()
