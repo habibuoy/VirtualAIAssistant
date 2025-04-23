@@ -9,6 +9,7 @@ public class ChatManager : MonoBehaviour
     [SerializeField] private WhisperManager whisperManager;
     [SerializeField] private MicrophoneRecord recorder;
     [SerializeField] private ChatView chatView;
+    [SerializeField] private JetsTts ttsRunner;
     [SerializeField] private string chatApiKey;
     [SerializeField] private string modelName;
 
@@ -63,6 +64,8 @@ public class ChatManager : MonoBehaviour
 
     private async Task ProcessAudio(AudioChunk audio)
     {
+        chatView.ToggleTalkButtonText(false);
+
         var result = await whisperManager.GetTextAsync(audio.Data, audio.Frequency, audio.Channels);
         if (result == null)
         {
@@ -85,7 +88,10 @@ public class ChatManager : MonoBehaviour
         }
 
         chatView.SetText(chatResult);
-        chatView.ToggleTalkButtonText(false);
+        if (ttsRunner)
+        {
+            ttsRunner.TextToSpeech(chatResult);
+        }
     }
 
     private void OnTalkButtonPressed()
