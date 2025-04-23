@@ -58,7 +58,7 @@ public class JetsTts : MonoBehaviour
         {
             Debug.Log("Readback request done");
 
-            var audioData = outputTensor.AsReadOnlySpan();
+            var audioData = outputTensor.DownloadToArray();
             CompleteInference(audioData);
 
             outputTensor = null;
