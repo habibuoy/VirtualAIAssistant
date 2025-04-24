@@ -46,6 +46,7 @@ namespace VirtualAiAssistant.Tts
 
         public event Action<float> ProcessCompleted;
         public event Action ProcessCancelled;
+        public event Action SpeechStarted;
         public event Action SpeechCompleted;
 
         private void Awake()
@@ -257,6 +258,7 @@ namespace VirtualAiAssistant.Tts
             {
                 audioSource.clip = clip;
                 audioSource.Play();
+                SpeechStarted?.Invoke();
                 isPlayingSpeech = true;
             }
             else
@@ -265,7 +267,7 @@ namespace VirtualAiAssistant.Tts
             }
         }
 
-        public void SpeakAudio(AudioClip audioClip)
+        public void SpeakSpeech(AudioClip audioClip)
         {
             clip = audioClip;
             Speak();
