@@ -3,7 +3,6 @@ using UnityEngine;
 using Unity.Sentis;
 using System.IO;
 using System;
-using System.Threading.Tasks;
 
 //                      Jets Text-To-Speech Inference
 //                      =============================
@@ -34,14 +33,17 @@ public class JetsTts : MonoBehaviour
     //Can change pitch and speed with this for a slightly different voice:
     private const int SampleRate = 22050;
 
+    private Model model;
     private Worker worker;
     private AudioClip clip;
     private bool hasPendingInference = false;
     private Tensor<float> outputTensor;
 
     private bool isPlayingSpeech;
+    private int generatedSpeechCount;
 
     public event Action<float> ProcessCompleted;
+    public event Action ProcessCancelled;
     public event Action SpeechCompleted;
 
     private void Awake()
@@ -56,9 +58,16 @@ public class JetsTts : MonoBehaviour
             && outputTensor != null
             && outputTensor.IsReadbackRequestDone())
         {
-            Debug.Log("Readback request done");
-
+            int length = outputTensor.shape.length;
             var audioData = outputTensor.DownloadToArray();
+            outputTensor.Dispose();
+
+            if (audioData.Length > length)
+            {
+                Array.Resize(ref audioData, length);
+            }
+
+            generatedSpeechCount++;
             CompleteInference(audioData);
 
             outputTensor = null;
@@ -69,7 +78,6 @@ public class JetsTts : MonoBehaviour
         {
             if (!audioSource.isPlaying)
             {
-                Debug.Log("Speech completed");
                 isPlayingSpeech = false;
                 SpeechCompleted?.Invoke();
             }
@@ -98,7 +106,12 @@ public class JetsTts : MonoBehaviour
 
     private void LoadModel()
     {
-        var model = ModelLoader.Load(Path.Join(Application.streamingAssetsPath, "jets-TTS/jets-text-to-speech.sentis"));
+        model = ModelLoader.Load(Path.Join(Application.streamingAssetsPath, "jets-TTS/jets-text-to-speech.sentis"));
+    }
+
+    private void CreateWorker()
+    {
+        worker?.Dispose();
         worker = new Worker(model, BackendType.GPUCompute);
     }
 
@@ -198,31 +211,39 @@ public class JetsTts : MonoBehaviour
 
         int[] tokens = GetTokens(ptext);
 
-        using var input = new Tensor<int>(new TensorShape(tokens.Length), tokens);
-        worker.Schedule(input);
+        var input = new Tensor<int>(new TensorShape(tokens.Length), tokens);
+        
+        try
+        {
+            CreateWorker();
+            worker.Schedule(input);
 
-        outputTensor = worker.PeekOutput("wav") as Tensor<float>;
-        outputTensor.ReadbackRequest();
-        hasPendingInference = true;
+            outputTensor = worker.PeekOutput("wav") as Tensor<float>;
 
-        // using var samplesTensor = (worker.PeekOutput("wav") as Tensor<float>).ReadbackAndClone();
-        // var samples = samplesTensor.AsReadOnlySpan();
-
-        // Debug.Log($"Audio size = {samples.Length / SampleRate} seconds");
-
-        // clip = AudioClip.Create("voice audio", samples.Length, 1, SampleRate, false);
-        // clip.SetData(samples.ToArray(), 0);
-
-        // Speak();
+            outputTensor.ReadbackRequest();
+            hasPendingInference = true;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"There has been an error when doing an Inference: {ex}");
+            ProcessCancelled?.Invoke();
+        }
+        finally
+        {
+            input.Dispose();
+        }
     }
 
-    private void CompleteInference(ReadOnlySpan<float> data)
+    private void CompleteInference(float[] data)
     {
         var duration = data.Length / SampleRate;
         Debug.Log($"Audio size = {duration} seconds");
 
-        clip = AudioClip.Create("voice audio", data.Length, 1, SampleRate, false);
-        clip.SetData(data.ToArray(), 0);
+        clip = AudioClip.Create($"TTSAudio_{generatedSpeechCount}", data.Length, 1, SampleRate, false);
+        clip.SetData(data, 0);
+
+        audioSource.Stop();
+        audioSource.clip = null;
 
         Speak();
         ProcessCompleted?.Invoke(duration);
@@ -232,7 +253,6 @@ public class JetsTts : MonoBehaviour
     {
         if (audioSource != null)
         {
-            Debug.Log("Playing audio");
             audioSource.clip = clip;
             audioSource.Play();
             isPlayingSpeech = true;
@@ -246,5 +266,6 @@ public class JetsTts : MonoBehaviour
     private void OnDestroy()
     {
         worker?.Dispose();
+        outputTensor?.Dispose();
     }
 }
