@@ -4,9 +4,9 @@ using UnityEngine;
 using Whisper;
 using Whisper.Utils;
 using VirtualAiAssistant.Ai;
-using VirtualAiAssistant.Ai.Implementations;
 using VirtualAiAssistant.Tts;
 using VirtualAiAssistant.View;
+using System.Collections.Generic;
 using System;
 
 namespace VirtualAiAssistant
@@ -19,13 +19,12 @@ namespace VirtualAiAssistant
         [SerializeField] private CharacterView characterView;
         [SerializeField] private ChatOptionView chatOptionView;
         [SerializeField] private JetsTts ttsRunner;
-        [SerializeField] private AiChatProvider aiChatProvider = AiChatProvider.Gemini;
-        [SerializeField] private string chatApiKey;
-        [SerializeField] private string modelName;
         [SerializeField] private bool generateSpeechUsingOfflineModel = true;
 
         private const string AIChatConfigPath = "AIChatConfig/config.json";
         private const string BlankAudioText = "[BLANK_AUDIO]";
+
+        private readonly Dictionary<string, IChatAi> aiChatProviders = new();
 
         public bool IsRecording => recorder.IsRecording;
         private IChatAi chatAi;
@@ -38,43 +37,63 @@ namespace VirtualAiAssistant
             ttsRunner.SpeechStarted += OnSpeechStarted;
             ttsRunner.SpeechCompleted += OnSpeechCompleted;
             chatOptionView.OfflineTtsChanged += OnOfflineTtsToggleChanged;
+            chatOptionView.AiChatProviderChanged += OnAiChatDropdownProviderChanged;
 
             chatView.EnableTalkButton(false);
+            chatOptionView.EnableAiChatProviderDropdown(false);
 
-            AiChatConfig aiConfig = null;
+            AiChatConfiguration aiConfigs = null;
             var keyFilePath = Path.Combine(Application.dataPath, AIChatConfigPath);
             if (File.Exists(keyFilePath))
             {
                 var configString = File.ReadAllText(keyFilePath);
-                aiConfig = JsonUtility.FromJson<AiChatConfig>(configString);
-            }
-            else
-            {
-                aiConfig = new AiChatConfig
+                aiConfigs = JsonUtility.FromJson<AiChatConfiguration>(configString);
+
+                List<string> providers = new();
+
+                foreach (var config in aiConfigs.configs)
                 {
-                    aiProvider = aiChatProvider.ToString(),
-                    model = modelName,
-                    apiKey = chatApiKey
-                };
+                    var aiProvider = config.aiProvider;
+                    var aiChat = ChatAiFactory.Create(config);
+                    if (!await aiChat.IsModelValidAsync())
+                    {
+                        Debug.LogWarning($"Model {aiChat.Model} of {aiChat.GetType()} is not valid");
+                        continue;
+                    }
+
+                    aiChatProviders.TryAdd(aiProvider, aiChat);
+                    if (!providers.Contains(aiProvider))
+                    {
+                        providers.Add(aiProvider);
+                    }
+
+                    if (config.aiProvider == "Gemini")
+                    {
+                        chatAi = aiChat;
+                    }
+                }
+
+                chatOptionView.SetupAiChatProviderDropdown(providers);
             }
 
-            if (aiConfig == null
-                || string.IsNullOrEmpty(aiConfig.apiKey))
+            if (aiConfigs == null
+                || aiChatProviders.Count == 0)
             {
-                Debug.LogWarning($"API key is not set. Please provide a valid API key. Either put in the editor or in a json file with key 'aiProvider', 'model' and 'apiKey' in: {keyFilePath}");
+                Debug.LogError($"Please provde a config json file in: {keyFilePath}");
+                return;
             }
-            
-            chatAi = ChatAiFactory.Create(aiConfig);
-            if (await chatAi.IsModelValidAsync())
+
+            chatView.EnableTalkButton(true);
+            chatView.UpdateAction(ChatAction.Waiting);
+            chatOptionView.ChangeOfflineTtsToggle(true);
+            chatOptionView.EnableAiChatProviderDropdown(true);
+        }
+
+        private void OnAiChatDropdownProviderChanged(string provider)
+        {
+            if (!aiChatProviders.TryGetValue(provider, out chatAi))
             {
-                Debug.Log($"Chat model {chatAi.Model} is valid.");
-                chatView.EnableTalkButton(true);
-                chatView.UpdateAction(ChatAction.Waiting);
-                chatOptionView.ChangeOfflineTtsToggle(true);
-            }
-            else
-            {
-                Debug.LogError($"Chat model {chatAi.Model} is not valid.");
+                throw new InvalidOperationException($"Ai Chat Provider {provider} does not exist here!");
             }
         }
 
@@ -110,6 +129,7 @@ namespace VirtualAiAssistant
             characterView.FadeToIdle();
             chatView.UpdateAction(ChatAction.Waiting);
             chatOptionView.EnableOfflineTtsToggle(true);
+            chatOptionView.EnableAiChatProviderDropdown(true);
         }
 
         private async Task ProcessAudio(AudioChunk audio)
@@ -118,6 +138,7 @@ namespace VirtualAiAssistant
             chatView.UpdateAction(ChatAction.Thinking);
             characterView.FadeToIdle();
             chatOptionView.EnableOfflineTtsToggle(false);
+            chatOptionView.EnableAiChatProviderDropdown(false);
 
             var result = await whisperManager.GetTextAsync(audio.Data, audio.Frequency, audio.Channels);
             if (result == null)

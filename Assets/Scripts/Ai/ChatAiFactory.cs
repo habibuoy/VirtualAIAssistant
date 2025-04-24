@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using VirtualAiAssistant.Ai.Implementations;
 
 namespace VirtualAiAssistant.Ai
@@ -29,6 +30,13 @@ namespace VirtualAiAssistant.Ai
         }
     }
 
+    [Serializable]
+    public class AiChatConfiguration
+    {
+        public List<AiChatConfig> configs;
+    }
+
+    [Serializable]
     public class AiChatConfig
     {
         public string aiProvider;
