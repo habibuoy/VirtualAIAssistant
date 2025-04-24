@@ -23,6 +23,7 @@ namespace VirtualAiAssistant
         [SerializeField] private bool generateSpeechUsingOfflineModel = true;
 
         private const string AIChatConfigPath = "AIChatConfig/config.json";
+        private const string BlankAudioText = "[BLANK_AUDIO]";
 
         public bool IsRecording => recorder.IsRecording;
         private IChatAi chatAi;
@@ -87,11 +88,15 @@ namespace VirtualAiAssistant
 
         private void OnTtsCancelled()
         {
-            characterView.FadeToIdle();
-            chatView.UpdateAction(ChatAction.Waiting);
+            SetWaiting();
         }
 
         private void OnSpeechCompleted()
+        {
+            SetWaiting();
+        }
+
+        private void SetWaiting()
         {
             characterView.FadeToIdle();
             chatView.UpdateAction(ChatAction.Waiting);
@@ -107,6 +112,13 @@ namespace VirtualAiAssistant
             if (result == null)
             {
                 Debug.LogError("Failed to process audio.");
+                return;
+            }
+
+            if (result.Result.Trim() == BlankAudioText)
+            {
+                chatView.SetText("<i><b>Your Voice Was Not Recorded Correctly, Please Ensure Your Mic is Functioning Properly and try again.</b></i>");
+                SetWaiting();
                 return;
             }
 
