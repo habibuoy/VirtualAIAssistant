@@ -24,6 +24,7 @@ public class ChatManager : MonoBehaviour
         chatView.TalkButtonPressed += OnTalkButtonPressed;
         recorder.OnRecordStop += OnRecordStopped;
         ttsRunner.ProcessCompleted += OnTtsCompleted;
+        ttsRunner.ProcessCancelled += OnTtsCancelled;
         ttsRunner.SpeechCompleted += OnSpeechCompleted;
 
         AiChatConfig aiConfig = null;
@@ -68,6 +69,11 @@ public class ChatManager : MonoBehaviour
     private void OnTtsCompleted(float audioDuration)
     {
         characterView.FadeToTalking();
+    }
+
+    private void OnTtsCancelled()
+    {
+        characterView.FadeToIdle();
     }
 
     private void OnSpeechCompleted()
