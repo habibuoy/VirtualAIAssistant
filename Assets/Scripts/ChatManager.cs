@@ -7,6 +7,7 @@ using VirtualAiAssistant.Ai;
 using VirtualAiAssistant.Ai.Implementations;
 using VirtualAiAssistant.Tts;
 using VirtualAiAssistant.View;
+using System;
 
 namespace VirtualAiAssistant
 {
@@ -16,6 +17,7 @@ namespace VirtualAiAssistant
         [SerializeField] private MicrophoneRecord recorder;
         [SerializeField] private ChatView chatView;
         [SerializeField] private CharacterView characterView;
+        [SerializeField] private ChatOptionView chatOptionView;
         [SerializeField] private JetsTts ttsRunner;
         [SerializeField] private AiChatProvider aiChatProvider = AiChatProvider.Gemini;
         [SerializeField] private string chatApiKey;
@@ -35,6 +37,7 @@ namespace VirtualAiAssistant
             ttsRunner.ProcessCancelled += OnTtsCancelled;
             ttsRunner.SpeechStarted += OnSpeechStarted;
             ttsRunner.SpeechCompleted += OnSpeechCompleted;
+            chatOptionView.OfflineTtsChanged += OnOfflineTtsToggleChanged;
 
             chatView.EnableTalkButton(false);
 
@@ -67,11 +70,17 @@ namespace VirtualAiAssistant
                 Debug.Log($"Chat model {chatAi.Model} is valid.");
                 chatView.EnableTalkButton(true);
                 chatView.UpdateAction(ChatAction.Waiting);
+                chatOptionView.ChangeOfflineTtsToggle(true);
             }
             else
             {
                 Debug.LogError($"Chat model {chatAi.Model} is not valid.");
             }
+        }
+
+        private void OnOfflineTtsToggleChanged(bool isOn)
+        {
+            generateSpeechUsingOfflineModel = isOn;
         }
 
         private void OnRecordStopped(AudioChunk recordedAudio)
@@ -100,6 +109,7 @@ namespace VirtualAiAssistant
         {
             characterView.FadeToIdle();
             chatView.UpdateAction(ChatAction.Waiting);
+            chatOptionView.EnableOfflineTtsToggle(true);
         }
 
         private async Task ProcessAudio(AudioChunk audio)
@@ -107,6 +117,7 @@ namespace VirtualAiAssistant
             chatView.ToggleTalkButtonText(false);
             chatView.UpdateAction(ChatAction.Thinking);
             characterView.FadeToIdle();
+            chatOptionView.EnableOfflineTtsToggle(false);
 
             var result = await whisperManager.GetTextAsync(audio.Data, audio.Frequency, audio.Channels);
             if (result == null)
