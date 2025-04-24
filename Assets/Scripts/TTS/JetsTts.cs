@@ -265,6 +265,12 @@ namespace VirtualAiAssistant.Tts
             }
         }
 
+        public void SpeakAudio(AudioClip audioClip)
+        {
+            clip = audioClip;
+            Speak();
+        }
+
         private void OnDestroy()
         {
             worker?.Dispose();
