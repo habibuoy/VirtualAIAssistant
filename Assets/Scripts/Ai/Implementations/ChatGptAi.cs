@@ -3,13 +3,16 @@ using System.Threading.Tasks;
 using UnityEngine.Networking;
 using UnityEngine;
 using System.Collections.Generic;
+using System.Net;
 
 namespace VirtualAiAssistant.Ai.Implementations
 {
-    public class ChatGptAi : BaseChatAi
+    public class ChatGptAi : BaseChatAi, ITtsAi
     {
         private const string CompletionEndpoint = "v1/responses";
         private const string ModelsEndpoint = "v1/models/";
+        private const string TtsEndpoint = "v1/audio/speech";
+        private const string TtsModel = "gpt-4o-mini-tts";
 
         protected override Uri BaseUrl => new("https://api.openai.com/");
         protected override string DefaultModel => "gpt-4.1-nano";
@@ -82,6 +85,49 @@ namespace VirtualAiAssistant.Ai.Implementations
                 return request.webRequest.result == UnityWebRequest.Result.Success;
             }
         }
+
+        public async Task<AudioClip> PromptAudioAsync(string text)
+        {
+            using (var webRequest = UnityWebRequestMultimedia.GetAudioClip(BaseUrl + TtsEndpoint, AudioType.MPEG))
+            {
+                Debug.Log("Running ChatGpt TTS");
+                var requestBody = new ChatGptTtsRequestBody
+                {
+                    model = TtsModel,
+                    input = text,
+                    voice = "coral"
+                };
+
+                var jsonBody = JsonUtility.ToJson(requestBody);
+
+                if (string.IsNullOrEmpty(jsonBody))
+                {
+                    Debug.LogError("Failed to serialize request body.");
+                    return null;
+                }
+
+                webRequest.uploadHandler = new UploadHandlerRaw(System.Text.Encoding.UTF8.GetBytes(jsonBody));
+                webRequest.method = UnityWebRequest.kHttpVerbPOST;
+
+                webRequest.SetRequestHeader("Authorization", $"Bearer {apiKey}");
+                webRequest.SetRequestHeader("Content-Type", "application/json");
+
+                webRequest.SendWebRequest();
+
+                while (!webRequest.isDone)
+                {
+                    await Task.Yield();
+                }
+
+                if (webRequest.result != UnityWebRequest.Result.Success)
+                {
+                    Debug.LogError($"Error while requesting audio: {webRequest.error}");
+                    return null;
+                }
+
+                return DownloadHandlerAudioClip.GetContent(webRequest);
+            }
+        }
     }
 
     [Serializable]
@@ -89,6 +135,12 @@ namespace VirtualAiAssistant.Ai.Implementations
     {
         public string model;
         public string input;
+    }
+
+    [Serializable]
+    public class ChatGptTtsRequestBody : ChatGptRequestBody
+    {
+        public string voice;
     }
 
     [Serializable]
