@@ -4,7 +4,7 @@ using UnityEngine.Networking;
 using UnityEngine;
 using System.Collections.Generic;
 
-public class GeminiPrompter : BaseChatPrompter
+public class GeminiAi : BaseChatAi
 {
     private const string ModelsEndpoint = "v1beta/models/";
     private const string TextGenerationParam = ":generateContent";
@@ -14,13 +14,13 @@ public class GeminiPrompter : BaseChatPrompter
     protected override Uri BaseUrl => new ("https://generativelanguage.googleapis.com/");
     protected override string DefaultModel => "gemini-2.0-flash";
 
-    public GeminiPrompter(string apiKey, string model)
+    public GeminiAi(string apiKey, string model)
         : base(apiKey, model)
     {
         apiKeyParam = $"?key={apiKey}";
     }
 
-    public override async Task<string> PromptAsync(string prompt)
+    public override async Task<string> PromptChatAsync(string prompt)
     {
         using (var webrequest = new UnityWebRequest(BaseUrl + ModelsEndpoint + Model + $"{TextGenerationParam}{apiKeyParam}",
             UnityWebRequest.kHttpVerbPOST))

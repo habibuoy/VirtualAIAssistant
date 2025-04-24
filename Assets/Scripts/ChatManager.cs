@@ -17,7 +17,7 @@ public class ChatManager : MonoBehaviour
     private const string AIChatConfigPath = "AIChatConfig/config.json";
 
     public bool IsRecording => recorder.IsRecording;
-    private IChatPrompter chatPrompter;
+    private IChatAi chatPrompter;
 
     private async void Awake()
     {
@@ -49,7 +49,7 @@ public class ChatManager : MonoBehaviour
             Debug.LogWarning($"API key is not set. Please provide a valid API key. Either put in the editor or in a json file with key 'model' and 'apiKey' in: {keyFilePath}");
         }
 
-        chatPrompter = new GeminiPrompter(aiConfig.apiKey, aiConfig.model);
+        chatPrompter = new GeminiAi(aiConfig.apiKey, aiConfig.model);
         if (await chatPrompter.IsModelValidAsync())
         {
             Debug.Log($"Chat model {chatPrompter.Model} is valid.");
@@ -97,7 +97,7 @@ public class ChatManager : MonoBehaviour
         chatView.SetText(result.Result);
         chatView.EnableTalkButton(false);
 
-        var chatResult = await chatPrompter.PromptAsync(result.Result);
+        var chatResult = await chatPrompter.PromptChatAsync(result.Result);
 
         chatView.EnableTalkButton(true);
 

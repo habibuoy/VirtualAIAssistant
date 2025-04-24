@@ -1,9 +1,9 @@
 using System.Threading.Tasks;
 
-public interface IChatPrompter
+public interface IChatAi
 {
     string Model { get; }
     
-    Task<string> PromptAsync(string prompt);
+    Task<string> PromptChatAsync(string prompt);
     Task<bool> IsModelValidAsync();
 }

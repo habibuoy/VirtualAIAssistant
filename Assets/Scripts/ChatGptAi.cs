@@ -4,7 +4,7 @@ using UnityEngine.Networking;
 using UnityEngine;
 using System.Collections.Generic;
 
-public class ChatGptPrompter : BaseChatPrompter
+public class ChatGptAi : BaseChatAi
 {
     private const string CompletionEndpoint = "v1/responses";
     private const string ModelsEndpoint = "v1/models/";
@@ -12,10 +12,10 @@ public class ChatGptPrompter : BaseChatPrompter
     protected override Uri BaseUrl => new ("https://api.openai.com/");
     protected override string DefaultModel => "gpt-4.1-nano";
 
-    public ChatGptPrompter(string apiKey, string model)
+    public ChatGptAi(string apiKey, string model)
         : base(apiKey, model) { }
 
-    public override async Task<string> PromptAsync(string prompt)
+    public override async Task<string> PromptChatAsync(string prompt)
     {
         using (var webrequest = new UnityWebRequest(BaseUrl + CompletionEndpoint, UnityWebRequest.kHttpVerbPOST))
         {

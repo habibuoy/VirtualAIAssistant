@@ -2,7 +2,7 @@ using System;
 using System.Threading.Tasks;
 using UnityEngine;
 
-public abstract class BaseChatPrompter : IChatPrompter
+public abstract class BaseChatAi : IChatAi
 {
     private string model = "";
     protected string apiKey;
@@ -12,7 +12,7 @@ public abstract class BaseChatPrompter : IChatPrompter
 
     public string Model => model;
 
-    public BaseChatPrompter(string apiKey, string model)
+    public BaseChatAi(string apiKey, string model)
     {
         this.apiKey = apiKey;
         this.model = string.IsNullOrEmpty(model) ? DefaultModel : model;
@@ -23,5 +23,5 @@ public abstract class BaseChatPrompter : IChatPrompter
 
     public abstract Task<bool> IsModelValidAsync();
 
-    public abstract Task<string> PromptAsync(string prompt);
+    public abstract Task<string> PromptChatAsync(string prompt);
 }
