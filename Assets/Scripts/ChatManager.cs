@@ -23,14 +23,14 @@ namespace VirtualAiAssistant
         private const string AIChatConfigPath = "AIChatConfig/config.json";
 
         public bool IsRecording => recorder.IsRecording;
-        private IChatAi chatPrompter;
+        private IChatAi chatAi;
 
         private async void Awake()
         {
             chatView.TalkButtonPressed += OnTalkButtonPressed;
             recorder.OnRecordStop += OnRecordStopped;
-            ttsRunner.ProcessCompleted += OnTtsCompleted;
             ttsRunner.ProcessCancelled += OnTtsCancelled;
+            ttsRunner.SpeechStarted += OnSpeechStarted;
             ttsRunner.SpeechCompleted += OnSpeechCompleted;
 
             AiChatConfig aiConfig = null;
@@ -56,13 +56,13 @@ namespace VirtualAiAssistant
             }
 
             chatPrompter = new GeminiAi(aiConfig.apiKey, aiConfig.model);
-            if (await chatPrompter.IsModelValidAsync())
+            if (await chatAi.IsModelValidAsync())
             {
-                Debug.Log($"Chat model {chatPrompter.Model} is valid.");
+                Debug.Log($"Chat model {chatAi.Model} is valid.");
             }
             else
             {
-                Debug.LogError($"Chat model {chatPrompter.Model} is not valid.");
+                Debug.LogError($"Chat model {chatAi.Model} is not valid.");
             }
         }
 
@@ -72,7 +72,7 @@ namespace VirtualAiAssistant
             _ = ProcessAudio(recordedAudio);
         }
 
-        private void OnTtsCompleted(float audioDuration)
+        private void OnSpeechStarted()
         {
             characterView.FadeToTalking();
         }
@@ -102,8 +102,8 @@ namespace VirtualAiAssistant
             chatView.ScrollChatToBottom();
             chatView.SetText(result.Result);
             chatView.EnableTalkButton(false);
-
-            var chatResult = await chatPrompter.PromptChatAsync(result.Result);
+        
+            var chatResult = await chatAi.PromptChatAsync(result.Result);
 
             chatView.EnableTalkButton(true);
 
@@ -114,6 +114,23 @@ namespace VirtualAiAssistant
             }
 
             chatView.SetText(chatResult);
+
+            if (chatAi is ITtsAi ttsAi)
+            {
+                var speech = await ttsAi.PromptAudioAsync(chatResult);
+                
+                if (speech == null)
+                {
+                    Debug.LogWarning("Failed to process speech from AI");
+                }
+                else if (ttsRunner)
+                {
+                    ttsRunner.SpeakSpeech(speech);
+                }
+
+                return;
+            }
+
             if (ttsRunner)
             {
                 ttsRunner.TextToSpeech(chatResult);
