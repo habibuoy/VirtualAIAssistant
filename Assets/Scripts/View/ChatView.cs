@@ -11,6 +11,7 @@ namespace VirtualAiAssistant.View
         [SerializeField] private TextMeshProUGUI talkButtonText;
         [SerializeField] private TextMeshProUGUI textBox;
         [SerializeField] private ScrollRect chatScroll;
+        [SerializeField] private TextMeshProUGUI actionText;
 
         public event Action TalkButtonPressed;
 
@@ -44,6 +45,19 @@ namespace VirtualAiAssistant.View
             chatScroll.verticalNormalizedPosition = 0f;
             LayoutRebuilder.ForceRebuildLayoutImmediate(chatScroll.content);
         }
+
+        public void UpdateAction(ChatAction action)
+        {
+            actionText.text = action.ToString() + "...";
+        }
+    }
+
+    public enum ChatAction
+    {
+        Waiting,
+        Listnening,
+        Thinking,
+        Talking,
     }
 }
 

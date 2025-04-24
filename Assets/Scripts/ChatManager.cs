@@ -65,6 +65,7 @@ namespace VirtualAiAssistant
             {
                 Debug.Log($"Chat model {chatAi.Model} is valid.");
                 chatView.EnableTalkButton(true);
+                chatView.UpdateAction(ChatAction.Waiting);
             }
             else
             {
@@ -81,21 +82,25 @@ namespace VirtualAiAssistant
         private void OnSpeechStarted()
         {
             characterView.FadeToTalking();
+            chatView.UpdateAction(ChatAction.Talking);
         }
 
         private void OnTtsCancelled()
         {
             characterView.FadeToIdle();
+            chatView.UpdateAction(ChatAction.Waiting);
         }
 
         private void OnSpeechCompleted()
         {
             characterView.FadeToIdle();
+            chatView.UpdateAction(ChatAction.Waiting);
         }
 
         private async Task ProcessAudio(AudioChunk audio)
         {
             chatView.ToggleTalkButtonText(false);
+            chatView.UpdateAction(ChatAction.Thinking);
             characterView.FadeToIdle();
 
             var result = await whisperManager.GetTextAsync(audio.Data, audio.Frequency, audio.Channels);
@@ -160,6 +165,7 @@ namespace VirtualAiAssistant
 
             StartRecording();
             chatView.ToggleTalkButtonText(true);
+            chatView.UpdateAction(ChatAction.Listnening);
             characterView.FadeToListening();
         }
 
